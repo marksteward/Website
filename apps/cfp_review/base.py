@@ -312,12 +312,12 @@ def update_proposal(proposal_id):
                 next_id=next_id,
             )
 
-        # Create any new tags that are needed
-        new_tags = [t for t in prop.tags if t.id is None]
+        # Tags can't be modified in normal use, locking isn't a worry.
+        # The race for duplicate insertion is acceptable.
+        new_tags = {t for t in prop.tags if t.id is None}
         if any(new_tags):
-            for t in new_tags:
-                db.session.add(t)
-            db.session.commit()
+            session.add_all(new_tags)
+            db.session.flush()
 
         if form.update.data:
             msg = "Updating proposal %s" % proposal_id

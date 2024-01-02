@@ -4,11 +4,20 @@ from . import BaseModel
 
 
 class Tag(BaseModel):
+    # A proposal can have multiple tags, which can be filtered on.
+    # Tags aren't deleted or modified in normal use, only created.
+
     __versioned__: dict = {}
     __tablename__ = "tag"
 
     id = db.Column(db.Integer, primary_key=True)
     tag = db.Column(db.String, nullable=False, unique=True)
+
+    proposals = db.relationship(
+        "Proposal",
+        back_populates="tags",
+        secondary="ProposalTag",
+    )
 
     def __init__(self, tag: str):
         self.tag = tag.strip().lower()
@@ -24,18 +33,18 @@ class Tag(BaseModel):
         return ",".join([str(t) for t in tag_list])
 
     @classmethod
+    def from_mapper(cls, tag_str: str) -> "Tag":
+        key = session.identity_key(Tag, tag_str)
+        return session.identity_map.get(key, Tag(tag_str))
+
+    @classmethod
     def parse_serialised_tags(cls, tag_str: str) -> list["Tag"]:
-        res = []
+        # While parsing, we map any tags that are already in the session.
+        # This will be the case if the tags haven't changed. We can then
+        # skip trying to reinsert any existing ones.
         tag_list = [t.strip().lower() for t in tag_str.split(",")]
-        for tag_value in tag_list:
-            if len(tag_value) == 0:
-                continue
-            tag = cls.query.filter_by(tag=tag_value).one_or_none()
-            if tag:
-                res.append(tag)
-            else:
-                res.append(Tag(tag_value))
-        return res
+        tag_list = filter(None, tag_list)
+        return [Tag.from_mapper(t) for t in tag_list]
 
 
 ProposalTag: sqlalchemy.Table = db.Table(

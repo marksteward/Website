@@ -373,8 +373,7 @@ class Proposal(BaseModel):
 
     tags = db.relationship(
         "Tag",
-        backref="proposals",
-        cascade="all",
+        back_populates="proposals",
         secondary=ProposalTag,
     )
 
